@@ -1,0 +1,12 @@
+LICENSE
+README.md
+pyproject.toml
+niri_split.egg-info/PKG-INFO
+niri_split.egg-info/SOURCES.txt
+niri_split.egg-info/dependency_links.txt
+niri_split.egg-info/entry_points.txt
+niri_split.egg-info/requires.txt
+niri_split.egg-info/top_level.txt
+nirisplit/__init__.py
+nirisplit/cli.py
+nirisplit/merger.py

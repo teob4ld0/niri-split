@@ -1,0 +1,2 @@
+[console_scripts]
+niri-split = nirisplit.cli:main

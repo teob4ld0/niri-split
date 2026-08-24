@@ -1,0 +1,7 @@
+
+[dev]
+pytest>=8.0
+watchdog>=4.0
+
+[watch]
+watchdog>=4.0
