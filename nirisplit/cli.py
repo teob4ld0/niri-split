@@ -111,13 +111,34 @@ def _watch(conf_dir: Path, output: Path) -> None:
         )
         sys.exit(1)
 
+    import threading
+
     class _Handler(FileSystemEventHandler):
-        def on_any_event(self, event):
-            if event.is_directory:
-                return
-            if str(event.src_path).endswith(".kdl"):
-                print(f"niri-split: change detected ({event.src_path}), rebuilding…")
-                _run_once(conf_dir, output, stdout=False)
+        def __init__(self):
+            self._timer: threading.Timer | None = None
+            self._lock = threading.Lock()
+
+        def _schedule_rebuild(self, path: str) -> None:
+            # Debounce: wait 300 ms after the last event before rebuilding
+            with self._lock:
+                if self._timer is not None:
+                    self._timer.cancel()
+                self._timer = threading.Timer(
+                    0.3, self._rebuild, args=(path,)
+                )
+                self._timer.start()
+
+        def _rebuild(self, path: str) -> None:
+            print(f"niri-split: change detected ({path}), rebuilding…")
+            _run_once(conf_dir, output, stdout=False)
+
+        def on_modified(self, event):
+            if not event.is_directory and str(event.src_path).endswith(".kdl"):
+                self._schedule_rebuild(event.src_path)
+
+        def on_created(self, event):
+            if not event.is_directory and str(event.src_path).endswith(".kdl"):
+                self._schedule_rebuild(event.src_path)
 
     observer = Observer()
     observer.schedule(_Handler(), str(conf_dir), recursive=False)
