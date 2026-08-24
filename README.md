@@ -67,7 +67,7 @@ pip install niri-split
 ### From source
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/niri-split
+git clone https://github.com/teob4ld0/niri-split.git
 cd niri-split
 pip install -e .
 ```
