@@ -71,6 +71,12 @@ git clone https://github.com/teob4ld0/niri-split.git
 cd niri-split
 pip install -e .
 ```
+### Or with ssh:
+```bash
+git@github.com:teob4ld0/niri-split.git
+cd niri-split
+pip install -e .
+```
 
 ### With watch support
 
