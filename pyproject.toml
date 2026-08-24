@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "niri-split"
+version = "0.1.0"
+description = "Split your Niri WM config into multiple files, Hyprland-style."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+keywords = ["niri", "wayland", "config", "kdl"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Desktop Environment",
+    "Topic :: Utilities",
+]
+
+# watchdog is optional — only needed for --watch
+dependencies = []
+
+[project.optional-dependencies]
+watch = ["watchdog>=4.0"]
+dev   = ["pytest>=8.0", "watchdog>=4.0"]
+
+[project.scripts]
+niri-split = "nirisplit.cli:main"
+
+[project.urls]
+Homepage   = "https://github.com/YOUR_USERNAME/niri-split"
+Repository = "https://github.com/YOUR_USERNAME/niri-split"
+Issues     = "https://github.com/YOUR_USERNAME/niri-split/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["nirisplit*"]

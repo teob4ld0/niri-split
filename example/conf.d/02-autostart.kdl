@@ -1,0 +1,9 @@
+// ─────────────────────────────────────────
+// 02 · AUTOSTART
+// ─────────────────────────────────────────
+
+spawn-at-startup "waybar"
+spawn-at-startup "quickshell"
+spawn-sh-at-startup "quickshell -p /home/user/skwd-wall/daemon.qml"
+spawn-at-startup "awww-daemon"
+spawn-sh-at-startup "~/.local/bin/gammastep-init.sh"

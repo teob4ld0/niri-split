@@ -1,0 +1,216 @@
+# niri-split
+
+Split your [Niri](https://github.com/YaLTeR/niri) WM `config.kdl` into multiple numbered files — the same workflow as Hyprland's `source` directive, but for KDL.
+
+```
+~/.config/niri/
+├── config.kdl          ← generated, do not edit by hand
+└── conf.d/
+    ├── 01-outputs.kdl
+    ├── 02-autostart.kdl
+    ├── 03-input.kdl
+    ├── 04-layout.kdl
+    ├── 05-decoration.kdl
+    ├── 06-animations.kdl
+    ├── 07-rules.kdl
+    └── 08-binds.kdl
+```
+
+## Features
+
+- **Zero runtime dependencies** — pure Python ≥ 3.11, no KDL parser library required.
+- **Smart merging** — `layout`, `binds`, `animations`, and `input` blocks are merged across files. Every other node is appended in file order.
+- **Comment-preserving** — all `//` and `/* */` comments are kept verbatim.
+- **Watch mode** — optional auto-rebuild on file changes via [`watchdog`](https://pypi.org/project/watchdog/).
+- **Usable as a library** — import `merge_configs` into your own scripts.
+
+## Why?
+
+Niri does not have a built-in `source` directive. This tool acts as a pre-processor: you edit small, focused files in `conf.d/` and `niri-split` assembles them into the final `config.kdl` that Niri reads.
+
+The key insight is that some Niri nodes (`layout`, `binds`, …) must be **children of a single parent block**. niri-split knows about this and merges their contents automatically, so you can write:
+
+```kdl
+# conf.d/04-layout.kdl
+layout {
+    gaps 16
+    center-focused-column "never"
+}
+```
+
+```kdl
+# conf.d/05-decoration.kdl
+layout {
+    focus-ring {
+        width 4
+        active-color "#7fc8ff"
+    }
+    shadow {
+        softness 30
+        spread 5
+        offset x=0 y=5
+        color "#0007"
+    }
+}
+```
+
+And get a correctly merged `config.kdl` with a single `layout { … }` block.
+
+## Installation
+
+### From PyPI (once published)
+
+```bash
+pip install niri-split
+```
+
+### From source
+
+```bash
+git clone https://github.com/YOUR_USERNAME/niri-split
+cd niri-split
+pip install -e .
+```
+
+### With watch support
+
+```bash
+pip install "niri-split[watch]"
+# or from source:
+pip install -e ".[watch]"
+```
+
+## Quick start
+
+1. **Create `conf.d/`** inside your Niri config directory and add your split files (see [example/conf.d/](example/conf.d/) for a starting point).
+
+2. **Run niri-split once** to generate `config.kdl`:
+
+   ```bash
+   niri-split
+   ```
+
+   This reads `~/.config/niri/conf.d/*.kdl` and writes `~/.config/niri/config.kdl`.
+
+3. **Reload Niri**:
+
+   ```bash
+   niri msg action reload-config
+   ```
+
+4. **Optional — enable watch mode** so the config rebuilds automatically whenever you save a file:
+
+   ```bash
+   niri-split --watch
+   ```
+
+   Add it to your autostart in `02-autostart.kdl`:
+
+   ```kdl
+   spawn-sh-at-startup "niri-split --watch"
+   ```
+
+## CLI reference
+
+```
+usage: niri-split [-h] [--conf-dir DIR] [--output FILE] [--stdout] [--watch] [--version]
+
+options:
+  --conf-dir DIR   Directory with numbered .kdl files
+                   (default: ~/.config/niri/conf.d)
+  --output FILE    Destination config.kdl
+                   (default: ~/.config/niri/config.kdl)
+  --stdout         Print merged config to stdout instead of writing a file
+  --watch          Rebuild on file changes (requires watchdog)
+  --version        Show version and exit
+```
+
+## Python API
+
+```python
+from pathlib import Path
+from nirisplit import merge_configs, MERGEABLE
+
+# Merge all *.kdl files in conf.d/ into a string
+result = merge_configs(Path("~/.config/niri/conf.d").expanduser())
+
+# Write it yourself if you need custom post-processing
+Path("~/.config/niri/config.kdl").write_text(result)
+
+# Check or extend the set of mergeable node names
+print(MERGEABLE)  # frozenset({'layout', 'binds', 'animations', 'input'})
+```
+
+### `merge_configs(conf_dir)`
+
+Reads all `*.kdl` files in `conf_dir` sorted by filename, merges them, and returns the result as a `str`.
+
+Raises `FileNotFoundError` if no `.kdl` files are found.
+
+### `parse_segments(text)`
+
+Splits a KDL string into `(node_name, raw_text)` tuples — one per top-level item.  
+`node_name` is `None` for blank lines, comments, and disabled (`/-`) nodes.
+
+### `extract_body(segment_text)`
+
+Returns the text between the outermost `{` and `}` of a block segment.
+
+## Merge rules
+
+| Node name       | Behaviour                                      |
+|-----------------|------------------------------------------------|
+| `layout`        | Children merged into one `layout { … }` block |
+| `binds`         | Children merged into one `binds { … }` block  |
+| `animations`    | Children merged into one block                 |
+| `input`         | Children merged into one block                 |
+| `window-rule`   | Each occurrence kept, appended in file order   |
+| `layer-rule`    | Each occurrence kept, appended in file order   |
+| `spawn-at-startup` | Each occurrence kept                        |
+| `output`        | Each occurrence kept                           |
+| Everything else | Appended in file order                         |
+
+Disabled nodes (prefixed with `/-`) are **never** merged — they are passed through unchanged.
+
+You can extend the merge set at runtime:
+
+```python
+from nirisplit import merger
+merger.MERGEABLE = merger.MERGEABLE | {"my-custom-block"}
+```
+
+## File naming convention
+
+Files are sorted lexicographically, so leading numbers guarantee order:
+
+```
+01-outputs.kdl      → outputs / monitors
+02-autostart.kdl    → spawn-at-startup entries
+03-input.kdl        → input { }
+04-layout.kdl       → layout geometry (gaps, column widths…)
+05-decoration.kdl   → layout decoration (focus-ring, border, shadow)
+06-animations.kdl   → animations { }
+07-rules.kdl        → window-rule / layer-rule
+08-binds.kdl        → binds { }
+```
+
+Numbers are only a convention — any `.kdl` filename works.
+
+## Example
+
+See [example/conf.d/](example/conf.d/) for a complete, annotated split config based on the Niri default template.
+
+## Contributing
+
+PRs are welcome. Please open an issue before adding new features.
+
+To run the tests:
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE).

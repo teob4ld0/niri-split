@@ -1,0 +1,41 @@
+// ─────────────────────────────────────────
+// 05 · DECORATION
+// ─────────────────────────────────────────
+// niri-split merges this layout block with the one in 04-layout.kdl,
+// so focus-ring, border, and shadow end up inside the same layout { }.
+
+layout {
+    // focus ring renders behind CSD windows; use draw-border-with-background
+    // false in a window-rule, or enable prefer-no-csd to draw it around them
+    focus-ring {
+        // off
+        width 4
+        active-color "#7fc8ff"
+        inactive-color "#505050"
+        // active-gradient from="#80c8ff" to="#c7ff7f" angle=45
+    }
+
+    border {
+        off
+        width 4
+        active-color "#ffc87f"
+        inactive-color "#505050"
+        urgent-color "#9b0000"
+    }
+
+    shadow {
+        // on
+        // draw-behind-window true
+        softness 30
+        spread 5
+        offset x=0 y=5
+        color "#0007"
+    }
+
+    struts {
+        // left 64
+        // right 64
+        // top 64
+        // bottom 64
+    }
+}

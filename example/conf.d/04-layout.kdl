@@ -1,0 +1,25 @@
+// ─────────────────────────────────────────
+// 04 · LAYOUT
+// ─────────────────────────────────────────
+// General geometry settings — gaps, column widths, etc.
+// Decoration (focus-ring, border, shadow) lives in 05-decoration.kdl.
+
+// prefer-no-csd
+
+screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
+
+layout {
+    background-color "transparent"
+    gaps 16
+    center-focused-column "never"
+
+    preset-column-widths {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        // fixed 1920
+    }
+
+    // preset-window-heights { }
+    default-column-width { proportion 0.5; }
+}

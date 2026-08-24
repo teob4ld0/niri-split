@@ -1,0 +1,11 @@
+// ─────────────────────────────────────────
+// 01 · OUTPUTS
+// ─────────────────────────────────────────
+// Run `niri msg outputs` to list available outputs and their modes.
+
+/-output "eDP-1" {
+    mode "1920x1080@120.030"
+    scale 2
+    transform "normal"
+    position x=1280 y=0
+}

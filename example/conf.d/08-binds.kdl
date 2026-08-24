@@ -1,0 +1,66 @@
+// ─────────────────────────────────────────
+// 08 · BINDS
+// ─────────────────────────────────────────
+// Tip: you can split binds across multiple files too — niri-split merges
+// all binds { } blocks into one. E.g. 08-binds-media.kdl, 08-binds-apps.kdl
+
+binds {
+    Mod+Shift+Slash { show-hotkey-overlay; }
+
+    // ── Apps ──────────────────────────────
+    Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
+    Mod+Q repeat=false { spawn "kitty"; }
+    Mod+E  { spawn "thunar"; }
+
+    // ── Focus ─────────────────────────────
+    Mod+H     { focus-column-left; }
+    Mod+J     { focus-window-down; }
+    Mod+K     { focus-window-up; }
+    Mod+Left  { focus-column-left; }
+    Mod+Right { focus-column-right; }
+    Mod+Up    { focus-workspace-up; }
+    Mod+Down  { focus-workspace-down; }
+
+    // ── Move ──────────────────────────────
+    Mod+Ctrl+H     { move-column-left; }
+    Mod+Ctrl+J     { move-window-down; }
+    Mod+Ctrl+K     { move-window-up; }
+    Mod+Ctrl+L     { move-column-right; }
+
+    // ── Workspaces ────────────────────────
+    Mod+Page_Down      { focus-workspace-down; }
+    Mod+Page_Up        { focus-workspace-up; }
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+
+    // ── Window management ─────────────────
+    Mod+C { close-window; }
+    Mod+F { fullscreen-window; }
+    Mod+M { maximize-window-to-edges; }
+    Mod+R { switch-preset-column-width; }
+    Mod+Space { toggle-window-floating; }
+    Mod+Minus { set-column-width "-10%"; }
+    Mod+Equal { set-column-width "+10%"; }
+
+    // ── Media ─────────────────────────────
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "pamixer" "-i" "5"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "pamixer" "-d" "5"; }
+    XF86AudioMute        allow-when-locked=true { spawn "pamixer" "-t"; }
+    XF86AudioPlay        allow-when-locked=true { spawn-sh "playerctl play-pause"; }
+    XF86AudioPrev        allow-when-locked=true { spawn-sh "playerctl previous"; }
+    XF86AudioNext        allow-when-locked=true { spawn-sh "playerctl next"; }
+
+    // ── Screenshots ───────────────────────
+    Print { screenshot; }
+    Ctrl+Print { screenshot-screen; }
+    Alt+Print { screenshot-window; }
+    Mod+Shift+S  { spawn-sh "grim -g \"$(slurp)\" - | wl-copy"; }
+
+    // ── Session ───────────────────────────
+    Mod+Shift+E { quit; }
+    Mod+Shift+P { power-off-monitors; }
+    Mod+Escape allow-inhibiting=false { spawn-sh "echo powerMenu > /tmp/qshell_cmd"; }
+}
