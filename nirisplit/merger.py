@@ -96,31 +96,83 @@ _SAFE_DEFAULTS: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
+def _check_after_string(path: Path, lineno: int, line: str, i: int) -> None:
+    """Raise FileError if the character at position i is not a valid KDL token separator."""
+    if i < len(line) and line[i] not in " \t;{}":
+        if line[i : i + 2] not in ("//", "/*"):
+            raise FileError(
+                path,
+                f"line {lineno}: unexpected '{line[i]}' immediately after closing quote",
+            )
+
+
 def validate_file(path: Path) -> None:
     """
     Check a .kdl file for obvious structural errors.
 
-    Raises :class:`FileError` if unmatched or unexpected braces are found.
-    String and comment content is properly ignored during counting.
+    Raises :class:`FileError` on:
+    - Unmatched or unexpected braces
+    - Unclosed quoted strings
+    - Non-whitespace/structural character immediately after a closing quote
+      (e.g. ``"value"garbage``)
     """
     content = path.read_text(encoding="utf-8")
     depth = 0
     for lineno, line in enumerate(content.splitlines(), start=1):
-        for ch in _significant_chars(line):
-            if ch == "{":
+        i = 0
+        n = len(line)
+        while i < n:
+            # Line comment → rest of line is irrelevant
+            if line[i : i + 2] == "//":
+                break
+            # Block comment (single-line only for typical configs)
+            if line[i : i + 2] == "/*":
+                end = line.find("*/", i + 2)
+                i = (end + 2) if end != -1 else n
+                continue
+            # Raw string  r#"..."#
+            if line[i] == "r" and i + 1 < n and line[i + 1] == "#":
+                j = i + 1
+                while j < n and line[j] == "#":
+                    j += 1
+                h = j - i - 1
+                if j < n and line[j] == '"':
+                    closing = '"' + "#" * h
+                    k = line.find(closing, j + 1)
+                    if k == -1:
+                        raise FileError(path, f"line {lineno}: unclosed raw string")
+                    i = k + len(closing)
+                    _check_after_string(path, lineno, line, i)
+                    continue
+            # Quoted string
+            if line[i] == '"':
+                i += 1
+                closed = False
+                while i < n:
+                    if line[i] == "\\":
+                        i += 2
+                    elif line[i] == '"':
+                        i += 1
+                        closed = True
+                        break
+                    else:
+                        i += 1
+                if not closed:
+                    raise FileError(path, f"line {lineno}: unclosed string")
+                _check_after_string(path, lineno, line, i)
+                continue
+            # Structural characters
+            if line[i] == "{":
                 depth += 1
-            elif ch == "}":
+            elif line[i] == "}":
                 depth -= 1
                 if depth < 0:
                     raise FileError(
-                        path,
-                        f"line {lineno}: unexpected closing brace '}}'",
+                        path, f"line {lineno}: unexpected closing brace '}}'"
                     )
+            i += 1
     if depth != 0:
-        raise FileError(
-            path,
-            f"{depth} unclosed block(s) at end of file",
-        )
+        raise FileError(path, f"{depth} unclosed block(s) at end of file")
 
 
 def _node_names_in(content: str) -> list[str]:
