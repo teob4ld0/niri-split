@@ -27,12 +27,141 @@ Merged result:
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
-__all__ = ["MERGEABLE", "merge_configs", "parse_segments", "extract_body"]
+__all__ = [
+    "MERGEABLE",
+    "FileError",
+    "merge_configs",
+    "parse_segments",
+    "extract_body",
+    "validate_file",
+]
 
 # Node names whose children are merged across files instead of duplicated.
 MERGEABLE: frozenset[str] = frozenset({"layout", "binds", "animations", "input"})
+
+
+class FileError(ValueError):
+    """Raised when a conf.d file contains KDL syntax errors."""
+
+    def __init__(self, path: Path, message: str) -> None:
+        self.path = path
+        self.message = message
+        super().__init__(f"{path.name}: {message}")
+
+
+# Minimal valid fallback content for each mergeable node type.
+# Used when a file fails validation so the session never breaks.
+_SAFE_DEFAULTS: dict[str, str] = {
+    "layout": (
+        "layout {\n"
+        "    background-color \"transparent\"\n"
+        "    gaps 16\n"
+        "    center-focused-column \"never\"\n"
+        "    default-column-width { proportion 0.5; }\n"
+        "    focus-ring {\n"
+        "        width 4\n"
+        "        active-color \"#7fc8ff\"\n"
+        "        inactive-color \"#505050\"\n"
+        "    }\n"
+        "    border { off }\n"
+        "    shadow {\n"
+        "        softness 30\n"
+        "        spread 5\n"
+        "        offset x=0 y=5\n"
+        "        color \"#0007\"\n"
+        "    }\n"
+        "    struts {}\n"
+        "}\n"
+    ),
+    "binds": (
+        "binds {\n"
+        "    Mod+Shift+E { quit; }\n"
+        "}\n"
+    ),
+    "input": (
+        "input {\n"
+        "    keyboard { numlock }\n"
+        "    touchpad { tap }\n"
+        "}\n"
+    ),
+    "animations": "animations {}\n",
+}
+
+
+# ---------------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------------
+
+
+def validate_file(path: Path) -> None:
+    """
+    Check a .kdl file for obvious structural errors.
+
+    Raises :class:`FileError` if unmatched or unexpected braces are found.
+    String and comment content is properly ignored during counting.
+    """
+    content = path.read_text(encoding="utf-8")
+    depth = 0
+    for lineno, line in enumerate(content.splitlines(), start=1):
+        for ch in _significant_chars(line):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth < 0:
+                    raise FileError(
+                        path,
+                        f"line {lineno}: unexpected closing brace '}}'",
+                    )
+    if depth != 0:
+        raise FileError(
+            path,
+            f"{depth} unclosed block(s) at end of file",
+        )
+
+
+def _node_names_in(content: str) -> list[str]:
+    """Best-effort extraction of top-level node names from broken content."""
+    seen: list[str] = []
+    for line in content.splitlines():
+        s = line.strip()
+        if not s or s.startswith("//") or s.startswith("/*") or s.startswith("/-"):
+            continue
+        m = re.match(r"^([\w-]+)", s)
+        if m and m.group(1) not in seen:
+            seen.append(m.group(1))
+    return seen
+
+
+def _safe_fallback(path: Path, error: FileError) -> str:
+    """
+    Build replacement content for *path* after it fails validation.
+
+    For each mergeable node found in the broken file, a minimal safe default
+    is emitted so that Niri never ends up with a missing required block.
+    Unknown / non-mergeable nodes are silently dropped.
+    """
+    raw = path.read_text(encoding="utf-8")
+    node_names = _node_names_in(raw)
+
+    lines: list[str] = [
+        f"// [niri-split ERROR] {path.name} failed validation: {error.message}\n",
+        "// The content below is a safe fallback. Fix the file to restore your settings.\n",
+    ]
+    replaced_any = False
+    for name in node_names:
+        if name in _SAFE_DEFAULTS:
+            lines.append(_SAFE_DEFAULTS[name])
+            replaced_any = True
+
+    if not replaced_any:
+        # File had only non-mergeable nodes; emit nothing so they don't corrupt the output
+        lines.append("// (no safe default available for this file's nodes — skipped)\n")
+
+    return "".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +359,13 @@ def merge_configs(conf_dir: Path) -> str:
     seen_merge: set[str] = set()
 
     for kdl_file in kdl_files:
-        content = kdl_file.read_text(encoding="utf-8")
+        try:
+            validate_file(kdl_file)
+            content = kdl_file.read_text(encoding="utf-8")
+        except FileError as exc:
+            print(f"niri-split: WARNING: {exc}", file=sys.stderr)
+            content = _safe_fallback(kdl_file, exc)
+
         for name, text in parse_segments(content):
             if name in MERGEABLE:
                 body = extract_body(text)
